@@ -1,0 +1,532 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>SICSI Prototipo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: barra lateral fija de módulos + área de trabajo con encabezado de contexto (almacén activo) y tarjetas por función. */
+:root{
+  --bg:#F3F5F8; --surface:#FFFFFF; --surface-2:#EEF2F7; --line:#D9E0EA; --fg:#18222E; --muted:#5B6878;
+  --accent:#1D5C8C; --accent-soft:#E3EEF7; --accent-fg:#FFFFFF; --side:#14324D; --side-fg:#C9D8E6; --side-active:#FFFFFF;
+  --ok:#1F7A4D; --ok-soft:#E2F3EA; --warn:#A86200; --warn-soft:#FCF0DC; --crit:#B3261E; --crit-soft:#FBE4E2; --info:#4F5BA8; --info-soft:#E7E9F7;
+  --font-ui:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif; --font-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F161E; --surface:#16202B; --surface-2:#1C2834; --line:#2A3846; --fg:#E4EAF1; --muted:#97A5B5;
+  --accent:#6AA8DA; --accent-soft:#1B3349; --accent-fg:#0B1520; --side:#0B1520; --side-fg:#9FB3C6; --side-active:#FFFFFF;
+  --ok:#5CC48E; --ok-soft:#173527; --warn:#E6A94A; --warn-soft:#3A2B12; --crit:#F08B83; --crit-soft:#3D1D1B; --info:#A3ABEA; --info-soft:#24284A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F161E; --surface:#16202B; --surface-2:#1C2834; --line:#2A3846; --fg:#E4EAF1; --muted:#97A5B5;
+  --accent:#6AA8DA; --accent-soft:#1B3349; --accent-fg:#0B1520; --side:#0B1520; --side-fg:#9FB3C6; --side-active:#FFFFFF;
+  --ok:#5CC48E; --ok-soft:#173527; --warn:#E6A94A; --warn-soft:#3A2B12; --crit:#F08B83; --crit-soft:#3D1D1B; --info:#A3ABEA; --info-soft:#24284A; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-ui);font-size:14px;line-height:1.45}
+a{color:var(--accent)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--font-mono);font-size:.92em}
+.num{font-variant-numeric:tabular-nums}
+.app{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100%}
+.side{background:var(--side);color:var(--side-fg);padding:18px 12px;display:flex;flex-direction:column;gap:18px;position:sticky;top:0;height:100vh;overflow:auto}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px;color:var(--side-active)}
+.brand-mark{width:34px;height:34px;border-radius:8px;background:var(--accent);display:grid;place-items:center;flex:none}
+.brand b{display:block;font-size:17px;letter-spacing:.06em}
+.brand small{display:block;font-size:11px;color:var(--side-fg)}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;padding:10px 10px 4px;opacity:.7}
+.nav a{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;color:var(--side-fg);text-decoration:none;font-weight:500}
+.nav a:hover{background:rgba(255,255,255,.06)}
+.nav a[aria-current="page"]{background:rgba(255,255,255,.12);color:var(--side-active)}
+.nav svg{width:18px;height:18px;flex:none}
+.nav .count{margin-left:auto;background:var(--crit);color:#fff;border-radius:999px;font-size:11px;padding:0 7px;font-weight:700}
+.side-foot{margin-top:auto;font-size:11px;padding:0 8px;opacity:.75}
+.main{min-width:0;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface);border-bottom:1px solid var(--line);padding-block:12px;padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px));position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+.crumb{color:var(--muted);font-size:12.5px}
+.crumb b{color:var(--fg);font-weight:600}
+.top .spacer{flex:1}
+.sel{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+select,input[type=text],input[type=search],input[type=number],input[type=password],input[type=email],input[type=date]{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0}
+.user{display:flex;align-items:center;gap:8px;font-size:12.5px}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700;font-size:12px}
+.content{padding-block:22px 40px;padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
+.head{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.head h1{font-size:22px;margin:0;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+.head p{margin:2px 0 0;color:var(--muted);max-width:70ch}
+.head .actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--fg)}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.sm{padding:5px 10px;font-size:12.5px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);min-width:0}
+.card h2{font-size:14px;margin:0;font-weight:700}
+.card-h{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.card-h .muted{margin-left:auto}
+.card-b{padding:14px 16px}
+.muted{color:var(--muted);font-size:12.5px}
+.grid{display:grid;gap:16px}
+.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+.kpi{padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.kpi .label{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.kpi .val{font-size:26px;font-weight:700;letter-spacing:-.02em}
+.kpi .delta{font-size:12.5px}
+.up{color:var(--ok)} .down{color:var(--crit)}
+.cols-2{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
+.cols-2e{grid-template-columns:repeat(2,minmax(0,1fr))}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;background:var(--surface-2)}
+td.r,th.r{text-align:right}
+tbody tr:hover{background:var(--surface-2)}
+tr.clickable{cursor:pointer}
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:600;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.ok{background:var(--ok-soft);color:var(--ok)} .warn{background:var(--warn-soft);color:var(--warn)} .crit{background:var(--crit-soft);color:var(--crit)} .info{background:var(--info-soft);color:var(--info)} .neutral{background:var(--surface-2);color:var(--muted)}
+.abc{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;font-weight:700;font-size:12px;background:var(--accent-soft);color:var(--accent)}
+.bar{height:6px;border-radius:999px;background:var(--surface-2);overflow:hidden;min-width:70px}
+.bar i{display:block;height:100%;border-radius:999px}
+.alert-row{display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border-bottom:1px solid var(--line)}
+.alert-row:last-child{border-bottom:0}
+.sev{width:4px;align-self:stretch;border-radius:4px;flex:none}
+.alert-row .body{min-width:0;flex:1}
+.alert-row .title{font-weight:600}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.toolbar input[type=search]{flex:1 1 220px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;font-size:12.5px;cursor:pointer;font-weight:500}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field label{font-size:12px;font-weight:600;color:var(--muted)}
+.scan{display:flex;gap:10px;align-items:center;background:var(--accent-soft);border:1px dashed var(--accent);border-radius:var(--r);padding:12px 14px;flex-wrap:wrap}
+.scan input{flex:1 1 220px;font-family:var(--font-mono)}
+.chart svg{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-size:11px;font-family:var(--font-ui)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:3px;border-radius:2px;display:inline-block}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:0}
+.dl dt{color:var(--muted);font-size:12.5px}
+.dl dd{margin:0;font-weight:500}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);padding:0 16px}
+.tabs button{border:0;background:none;padding:10px 12px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer}
+.tabs button[aria-selected="true"]{color:var(--accent);border-color:var(--accent)}
+.toast{position:fixed;right:max(20px,env(safe-area-inset-right,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.2);z-index:20}
+.sample{font-size:11.5px;color:var(--muted);background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:2px 10px}
+.report{padding:16px;display:flex;flex-direction:column;gap:8px}
+.report h3{margin:0;font-size:15px}
+.report .row{display:flex;gap:8px;margin-top:auto;flex-wrap:wrap}
+.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.diff-neg{color:var(--crit);font-weight:700} .diff-pos{color:var(--warn);font-weight:700} .diff-0{color:var(--ok);font-weight:600}
+/* Login */
+.login{min-height:100%;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}
+.login-art{background:var(--side);color:var(--side-fg);padding:48px;display:flex;flex-direction:column;justify-content:space-between;gap:24px}
+.login-art h1{color:var(--side-active);font-size:34px;line-height:1.15;margin:0;max-width:16ch;text-wrap:balance}
+.login-art ul{margin:0;padding-left:18px;display:grid;gap:6px;max-width:44ch}
+.shelf{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;max-width:420px}
+.shelf i{height:46px;border-radius:4px;background:rgba(255,255,255,.08);position:relative}
+.shelf i b{position:absolute;left:0;right:0;bottom:0;border-radius:4px;background:var(--accent)}
+.login-form{display:flex;align-items:center;justify-content:center;padding-block:40px;padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px))}
+.login-form form{width:100%;max-width:360px;display:flex;flex-direction:column;gap:14px}
+.login-form h2{margin:0;font-size:22px}
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.cols-2,.cols-2e,.cols-3{grid-template-columns:minmax(0,1fr)}.form{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:760px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .side{position:static;height:auto;flex-direction:row;align-items:center;overflow-x:auto;padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));gap:10px}
+  .brand small,.nav-label,.side-foot{display:none}
+  .nav{flex-direction:row}
+  .nav a span{white-space:nowrap}
+  .top,.content{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .kpis,.form{grid-template-columns:minmax(0,1fr)}
+  .login{grid-template-columns:minmax(0,1fr)}
+  .login-art{padding:28px max(16px,env(safe-area-inset-right,0px)) 28px max(16px,env(safe-area-inset-left,0px))}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div id="root"></div>
+
+<script>
+(function(){
+const fmt = n => n.toLocaleString('es-DO',{maximumFractionDigits:2});
+const rd = n => 'RD$' + n.toLocaleString('es-DO',{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// ---- Datos de ejemplo (coinciden con BD_SICSI) ----
+const ALM = [
+  {id:1,cod:'ALM-CEN',nom:'Almacén Central',prov:'Santo Domingo Oeste'},
+  {id:2,cod:'SUC-01',nom:'Sucursal Santiago',prov:'Santiago'},
+  {id:3,cod:'SUC-02',nom:'Sucursal San Pedro',prov:'San Pedro de Macorís'},
+];
+const P = [
+  {id:101,sku:'ALI-0012',cb:'7460012300125',nom:'Arroz selecto 10 lb',cat:'Alimentos',un:'UND',costo:395,precio:470,abc:'A',stock:[64,38,22],min:[120,60,40],max:[600,300,200],prov:'Molinos del Cibao, S.R.L.',lote:false},
+  {id:102,sku:'ALI-0047',cb:'7460012300477',nom:'Aceite de soya 1 galón',cat:'Alimentos',un:'UND',costo:610,precio:735,abc:'A',stock:[210,95,70],min:[80,40,30],max:[400,200,150],prov:'Distribuidora Oleica del Este',lote:true},
+  {id:103,sku:'ALI-0103',cb:'7460012301030',nom:'Habichuelas rojas 15 oz',cat:'Alimentos',un:'UND',costo:58,precio:75,abc:'B',stock:[860,410,295],min:[300,150,100],max:[1200,600,400],prov:'Conservas Quisqueya',lote:true},
+  {id:104,sku:'ALI-0150',cb:'7460012301504',nom:'Café molido 1 lb',cat:'Alimentos',un:'UND',costo:285,precio:345,abc:'A',stock:[48,22,30],min:[90,45,30],max:[360,180,120],prov:'Tostadora Barahona',lote:true},
+  {id:105,sku:'ALI-0221',cb:'7460012302211',nom:'Leche evaporada 12 oz',cat:'Alimentos',un:'UND',costo:62,precio:80,abc:'B',stock:[1340,520,610],min:[400,200,150],max:[1000,500,400],prov:'Lácteos del Valle',lote:true},
+  {id:106,sku:'LIM-0034',cb:'7460012400345',nom:'Detergente en polvo 1 kg',cat:'Limpieza',un:'UND',costo:142,precio:185,abc:'B',stock:[300,140,96],min:[150,70,50],max:[600,300,200],prov:'Químicos Caribe',lote:false},
+  {id:107,sku:'FER-0008',cb:'7460012500082',nom:'Cemento gris 42.5 kg',cat:'Ferretería',un:'SACO',costo:520,precio:610,abc:'A',stock:[380,160,0],min:[200,100,60],max:[900,400,250],prov:'Cementos del Sur',lote:false},
+  {id:108,sku:'FER-0115',cb:'7460012501157',nom:'Tubo PVC ½" x 19 pies',cat:'Ferretería',un:'UND',costo:165,precio:215,abc:'B',stock:[145,60,48],min:[60,30,20],max:[300,150,100],prov:'Plásticos Industriales RD',lote:false},
+  {id:109,sku:'FER-0202',cb:'7460012502024',nom:'Clavos de acero 2½" (lb)',cat:'Ferretería',un:'LB',costo:68,precio:95,abc:'C',stock:[912.5,402,260],min:[200,100,80],max:[600,300,200],prov:'Ferremax Importadora',lote:false},
+  {id:110,sku:'FER-0310',cb:'7460012503106',nom:'Pintura acrílica blanca 1 gal',cat:'Ferretería',un:'GL',costo:740,precio:950,abc:'C',stock:[36,12,9],min:[20,10,8],max:[90,40,30],prov:'Pinturas Tropical',lote:false},
+];
+const prodById = id => P.find(p=>p.id===id);
+const prodByCb = cb => P.find(p=>p.cb===cb || p.sku.toLowerCase()===cb.toLowerCase());
+
+const ALERTAS = [
+  {id:9041,tipo:'StockMinimo',prio:'Alta',prod:101,alm:1,msg:'Arroz selecto 10 lb: quedan 64 unidades (mínimo 120). Cobertura estimada: 3 días.',hace:'hace 25 min',estado:'Pendiente'},
+  {id:9040,tipo:'StockMinimo',prio:'Alta',prod:107,alm:3,msg:'Cemento gris 42.5 kg agotado en Sucursal San Pedro. Hay 380 sacos en Almacén Central.',hace:'hace 1 h',estado:'Pendiente'},
+  {id:9038,tipo:'Vencimiento',prio:'Media',prod:105,alm:1,msg:'Lote LV-2611-07 de leche evaporada (240 und.) vence el 28/11/2026.',hace:'hace 3 h',estado:'Pendiente'},
+  {id:9036,tipo:'StockMinimo',prio:'Media',prod:104,alm:1,msg:'Café molido 1 lb: quedan 48 unidades (mínimo 90).',hace:'hace 5 h',estado:'Pendiente'},
+  {id:9031,tipo:'Sobreinventario',prio:'Baja',prod:105,alm:1,msg:'Leche evaporada 12 oz supera su máximo (1,340 / 1,000). Evaluar transferencia.',hace:'ayer',estado:'Pendiente'},
+  {id:9027,tipo:'SinRotacion',prio:'Baja',prod:110,alm:3,msg:'Pintura acrílica blanca sin ventas en 92 días en Sucursal San Pedro.',hace:'hace 2 días',estado:'Pendiente'},
+  {id:9020,tipo:'StockMinimo',prio:'Alta',prod:102,alm:2,msg:'Aceite de soya en Santiago bajó a 38 unidades.',hace:'hace 4 días',estado:'Atendida'},
+];
+const TIPO_ALERTA = {StockMinimo:['Stock mínimo','crit'],Vencimiento:['Vencimiento','warn'],Sobreinventario:['Sobreinventario','info'],SinRotacion:['Sin rotación','neutral']};
+
+const MOVS = [
+  ['MOV-27581','ENT','Entrada por compra','Almacén Central','OC-2026-00412','09/11/2026 10:42','J. Peralta',38],
+  ['MOV-27580','SAL','Salida por venta','Sucursal Santiago','FAC-POS 88213','09/11/2026 10:15','M. Rosario',12],
+  ['MOV-27579','TRF','Transferencia','Central → San Pedro','TRF-0931','09/11/2026 09:30','J. Peralta',4],
+  ['MOV-27578','AJU','Ajuste por conteo','Almacén Central','CF-0057','08/11/2026 17:05','L. Báez',2],
+  ['MOV-27577','DEV','Devolución a proveedor','Almacén Central','NC-1120','08/11/2026 15:22','J. Peralta',1],
+];
+const TIPO_MOV = {ENT:'ok',SAL:'info',TRF:'neutral',AJU:'warn',DEV:'crit'};
+
+const ORDENES = [
+  {num:'OC-2026-00418',prov:'Molinos del Cibao, S.R.L.',alm:'Almacén Central',fecha:'09/11/2026',entrega:'12/11/2026',estado:'Borrador',sug:true,total:236000},
+  {num:'OC-2026-00417',prov:'Tostadora Barahona',alm:'Almacén Central',fecha:'09/11/2026',entrega:'14/11/2026',estado:'Aprobada',sug:true,total:68400},
+  {num:'OC-2026-00415',prov:'Cementos del Sur',alm:'Sucursal San Pedro',fecha:'07/11/2026',entrega:'10/11/2026',estado:'Enviada',sug:false,total:124800},
+  {num:'OC-2026-00412',prov:'Distribuidora Oleica del Este',alm:'Almacén Central',fecha:'04/11/2026',entrega:'09/11/2026',estado:'Parcial',sug:true,total:183000},
+  {num:'OC-2026-00409',prov:'Químicos Caribe',alm:'Sucursal Santiago',fecha:'02/11/2026',entrega:'06/11/2026',estado:'Recibida',sug:false,total:42600},
+  {num:'OC-2026-00401',prov:'Pinturas Tropical',alm:'Sucursal San Pedro',fecha:'28/10/2026',entrega:'—',estado:'Cancelada',sug:false,total:22200},
+];
+const EST_OC = {Borrador:'neutral',Aprobada:'info',Enviada:'info',Parcial:'warn',Recibida:'ok',Cancelada:'crit'};
+
+const SUGERENCIAS = [
+  {prod:101,alm:1,stock:64,pr:118,dem:410,prov:'Molinos del Cibao, S.R.L.',dias:3,cant:500},
+  {prod:104,alm:1,stock:48,pr:86,dem:160,prov:'Tostadora Barahona',dias:5,cant:240},
+  {prod:107,alm:3,stock:0,pr:72,dem:95,prov:'Cementos del Sur',dias:2,cant:240},
+  {prod:102,alm:2,stock:95,pr:96,dem:120,prov:'Distribuidora Oleica del Este',dias:4,cant:120},
+];
+
+// Serie semanal del arroz selecto (ventas reales 16 semanas + pronóstico 6)
+const HIST = [372,388,365,401,395,420,412,398,430,445,418,436,452,440,461,455];
+const FC = [462,468,471,480,476,484];
+
+const USERS = [
+  ['Ana Cuevas','ana.cuevas@caribenorte.do','Administrador','Todos','Activo','09/11/2026 08:01'],
+  ['Rafael Mena','rafael.mena@caribenorte.do','Gerente','Todos','Activo','09/11/2026 09:14'],
+  ['Carolina Díaz','carolina.diaz@caribenorte.do','Compras','Todos','Activo','09/11/2026 08:47'],
+  ['José Peralta','jose.peralta@caribenorte.do','Almacén','Almacén Central','Activo','09/11/2026 07:32'],
+  ['Marina Rosario','marina.rosario@caribenorte.do','Almacén','Sucursal Santiago','Activo','09/11/2026 07:55'],
+  ['Luis Báez','luis.baez@caribenorte.do','Auditor','Todos','Activo','08/11/2026 16:40'],
+  ['Pedro Santana','pedro.santana@caribenorte.do','Almacén','Sucursal San Pedro','Inactivo','14/10/2026 18:02'],
+];
+
+// ---- Estado de la sesión ----
+const state = {alm:0, lines:[], tipoMov:'ENT', filtroAlerta:'Todas', q:'', cat:'Todas', conteo:null, prod:101};
+
+// ---- Iconos (trazos simples) ----
+const I = {
+  inicio:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  productos:'<path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/>',
+  movimientos:'<path d="M4 7h13l-3-3"/><path d="M20 17H7l3 3"/>',
+  alertas:'<path d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4z"/><path d="M10 21h4"/>',
+  pronostico:'<path d="M3 19h18"/><path d="M4 15l5-5 4 3 7-7"/><path d="M15 6h5v5"/>',
+  ordenes:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
+  conteo:'<path d="M9 4h6v3H9z"/><path d="M7 5H5v16h14V5h-2"/><path d="M8 13l3 3 5-6"/>',
+  reportes:'<path d="M5 3h10l4 4v14H5z"/><path d="M9 17v-4M12 17v-7M15 17v-2"/>',
+  usuarios:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>',
+};
+const icon = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[k]}</svg>`;
+
+const ROUTES = [
+  ['inicio','Tablero','General'],['productos','Productos','Inventario'],['movimientos','Movimientos','Inventario'],
+  ['conteo','Conteo físico','Inventario'],['alertas','Alertas','Inventario'],['pronostico','Pronóstico','Compras'],
+  ['ordenes','Órdenes de compra','Compras'],['reportes','Reportes','Análisis'],['usuarios','Usuarios y roles','Administración'],
+];
+const TITLES = Object.fromEntries(ROUTES.map(r=>[r[0],r[1]])); TITLES.producto='Ficha de producto';
+
+function stockOf(p){ return state.alm===0 ? p.stock.reduce((a,b)=>a+b,0) : p.stock[state.alm-1]; }
+function minOf(p){ return state.alm===0 ? p.min.reduce((a,b)=>a+b,0) : p.min[state.alm-1]; }
+function maxOf(p){ return state.alm===0 ? p.max.reduce((a,b)=>a+b,0) : p.max[state.alm-1]; }
+function stockPill(p){
+  const s=stockOf(p), mn=minOf(p), mx=maxOf(p);
+  if(s===0 || p.stock.some(x=>x===0) && state.alm===0) return s===0?'<span class="pill crit">Agotado</span>':'<span class="pill crit">Agotado en 1 local</span>';
+  if(s<mn) return '<span class="pill crit">Bajo mínimo</span>';
+  if(s>mx) return '<span class="pill info">Sobreinventario</span>';
+  return '<span class="pill ok">Normal</span>';
+}
+function pendientes(){ return ALERTAS.filter(a=>a.estado==='Pendiente').length; }
+
+function shell(route, inner){
+  let lastGroup='';
+  const nav = ROUTES.map(([k,label,g])=>{
+    const head = g!==lastGroup ? `<div class="nav-label">${g}</div>` : ''; lastGroup=g;
+    const cur = (route===k || (route==='producto'&&k==='productos')) ? ' aria-current="page"' : '';
+    const cnt = k==='alertas' ? `<span class="count">${pendientes()}</span>` : '';
+    return head + `<a href="#${k}"${cur}>${icon(k)}<span>${label}</span>${cnt}</a>`;
+  }).join('');
+  return `<div class="app">
+  <aside class="side">
+    <div class="brand"><div class="brand-mark">${icon('productos').replace('stroke="currentColor"','stroke="#fff"')}</div><div><b>SICSI</b><small>Control de stock inteligente</small></div></div>
+    <nav class="nav" aria-label="Módulos">${nav}</nav>
+    <div class="side-foot">Distribuidora Caribe Norte, S.R.L.<br>Prototipo v0.3 · datos de ejemplo</div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div class="crumb">SICSI / <b>${TITLES[route]}</b></div>
+      <div class="spacer"></div>
+      <label class="sel" for="almSel">Almacén
+        <select id="almSel">${['Todos los almacenes',...ALM.map(a=>a.nom)].map((n,i)=>`<option value="${i}" ${i===state.alm?'selected':''}>${n}</option>`).join('')}</select>
+      </label>
+      <a class="btn sm" href="#login" title="Cerrar sesión">Salir</a>
+      <div class="user"><div class="avatar">CD</div><div><b>Carolina Díaz</b><div class="muted">Compras</div></div></div>
+    </header>
+    <main class="content">${inner}</main>
+  </div></div>`;
+}
+
+// ---- Gráfico de línea (SVG, una sola escala) ----
+function lineChart(hist, fc, opts={}){
+  const W=640,H=230,L=44,R=14,T=14,B=30; const n=hist.length+fc.length;
+  const all=[...hist,...fc]; const lo=Math.floor(Math.min(...all)/50)*50-50, hi=Math.ceil(Math.max(...all)/50)*50+20;
+  const x=i=>L+i*(W-L-R)/(n-1), y=v=>T+(hi-v)*(H-T-B)/(hi-lo);
+  let g='';
+  for(let v=Math.ceil(lo/50)*50; v<=hi; v+=50){ g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end">${v}</text>`; }
+  const labels = Array.from({length:n},(_,i)=>i);
+  labels.filter(i=>i%3===0||i===n-1).forEach(i=>{ g+=`<text x="${x(i)}" y="${H-10}" text-anchor="middle">S${i+1}</text>`; });
+  const hp=hist.map((v,i)=>`${x(i)},${y(v)}`).join(' ');
+  const fp=[hist.length-1,...fc.map((_,i)=>hist.length+i)].map((i,k)=>`${x(i)},${y(k===0?hist[hist.length-1]:fc[k-1])}`).join(' ');
+  const band = fc.map((v,i)=>`${x(hist.length+i)},${y(v*1.08)}`).concat(fc.map((v,i)=>`${x(hist.length+i)},${y(v*0.92)}`).reverse());
+  band.unshift(`${x(hist.length-1)},${y(hist[hist.length-1])}`);
+  const area = `${x(0)},${y(lo)} ${hp} ${x(hist.length-1)},${y(lo)}`;
+  const ex = hist.length-1;
+  return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${opts.aria||'Demanda semanal'}">
+    ${g}
+    <line x1="${x(ex)}" x2="${x(ex)}" y1="${T}" y2="${H-B}" stroke="var(--muted)" stroke-dasharray="3 3"/>
+    <text x="${x(ex)+6}" y="${T+10}">hoy</text>
+    <polygon points="${area}" fill="var(--accent)" opacity=".08"/>
+    <polygon points="${band.join(' ')}" fill="var(--warn)" opacity=".15"/>
+    <polyline points="${hp}" fill="none" stroke="var(--accent)" stroke-width="2.4"/>
+    <polyline points="${fp}" fill="none" stroke="var(--warn)" stroke-width="2.4" stroke-dasharray="6 4"/>
+    <circle cx="${x(ex)}" cy="${y(hist[ex])}" r="4" fill="var(--accent)"/>
+  </svg>
+  <div class="legend"><span><i style="background:var(--accent)"></i>Ventas reales (und./semana)</span><span><i style="background:var(--warn)"></i>Pronóstico</span><span><i style="background:var(--warn);opacity:.3;height:8px"></i>Intervalo ±8 %</span></div></div>`;
+}
+
+// ---- Vistas ----
+const V = {};
+V.login = () => `<div class="login">
+  <section class="login-art">
+    <div class="brand"><div class="brand-mark">${icon('productos').replace('stroke="currentColor"','stroke="#fff"')}</div><div><b>SICSI</b><small>Distribuidora Caribe Norte</small></div></div>
+    <div style="display:grid;gap:18px">
+      <h1>Su inventario al día en los tres almacenes</h1>
+      <ul><li>Entradas y salidas con código de barras</li><li>Alertas de stock mínimo y vencimiento</li><li>Pronóstico de demanda y órdenes sugeridas</li></ul>
+      <div class="shelf" aria-hidden="true">${[78,40,92,18,64,55,86,30].map(h=>`<i><b style="height:${h}%"></b></i>`).join('')}</div>
+    </div>
+    <small>Prototipo académico · Proyecto de Software I · UNICARIBE</small>
+  </section>
+  <section class="login-form"><form id="loginForm" novalidate>
+    <div><h2>Iniciar sesión</h2><p class="muted">Use su correo corporativo.</p></div>
+    <div class="field"><label for="email">Correo electrónico</label><input id="email" type="email" value="carolina.diaz@caribenorte.do" autocomplete="username"></div>
+    <div class="field"><label for="pass">Contraseña</label><input id="pass" type="password" value="prototipo123" autocomplete="current-password"></div>
+    <label class="muted" style="display:flex;gap:8px;align-items:center"><input id="remember" type="checkbox" checked> Recordar este equipo</label>
+    <button class="btn primary" type="submit" style="justify-content:center">Entrar</button>
+    <p class="muted">¿Olvidó su contraseña? Solicite el restablecimiento al administrador del sistema.</p>
+    <p id="loginErr" class="pill crit" hidden>Escriba su correo y contraseña para continuar.</p>
+  </form></section></div>`;
+
+V.inicio = () => {
+  const bajo = P.filter(p=>stockOf(p)<minOf(p)).length;
+  const valor = P.reduce((a,p)=>a+stockOf(p)*p.costo,0);
+  const crit = ALERTAS.filter(a=>a.estado==='Pendiente').slice(0,4);
+  return `<div class="head"><div><h1>Tablero de inventario</h1><p>Resumen de la semana 45 · lunes 9 de noviembre de 2026</p></div><div class="actions"><span class="sample">Datos de ejemplo</span><a class="btn primary" href="#movimientos">Registrar movimiento</a></div></div>
+  <div class="grid kpis">
+    <div class="card kpi"><span class="label">Valor del inventario</span><span class="val num">${rd(valor).replace(/\.\d\d$/,'')}</span><span class="delta up">▲ 2.1 % vs. semana anterior</span></div>
+    <div class="card kpi"><span class="label">Productos bajo mínimo</span><span class="val num">${bajo}</span><span class="delta down">▲ 1 desde ayer</span></div>
+    <div class="card kpi"><span class="label">Quiebres de stock (mes)</span><span class="val num">6.8 %</span><span class="delta up">▼ desde 12 % (meta ≤ 4 %)</span></div>
+    <div class="card kpi"><span class="label">Exactitud de inventario</span><span class="val num">96.4 %</span><span class="delta up">▲ último conteo cíclico</span></div>
+  </div>
+  <div class="grid cols-2">
+    <div class="card"><div class="card-h"><h2>Arroz selecto 10 lb · demanda semanal</h2><a class="muted" href="#pronostico">Ver pronóstico</a></div><div class="card-b">${lineChart(HIST,FC)}</div></div>
+    <div class="card"><div class="card-h"><h2>Alertas pendientes</h2><a class="muted" href="#alertas">Ver todas (${pendientes()})</a></div>
+      ${crit.map(a=>{const [t,c]=TIPO_ALERTA[a.tipo];return `<div class="alert-row"><span class="sev" style="background:var(--${c==='neutral'?'muted':c})"></span><div class="body"><div class="title">${t} · ${ALM[a.alm-1].nom}</div><div class="muted">${esc(a.msg)}</div></div><span class="muted">${a.hace}</span></div>`}).join('')}
+    </div>
+  </div>
+  <div class="card"><div class="card-h"><h2>Movimientos recientes</h2><a class="muted" href="#movimientos">Registrar</a></div>
+    <div class="tablewrap"><table><thead><tr><th>Número</th><th>Tipo</th><th>Almacén</th><th>Documento</th><th>Fecha y hora</th><th>Usuario</th><th class="r">Líneas</th></tr></thead><tbody>
+    ${MOVS.map(m=>`<tr><td class="mono">${m[0]}</td><td><span class="pill ${TIPO_MOV[m[1]]}">${m[2]}</span></td><td>${m[3]}</td><td class="mono">${m[4]}</td><td class="num">${m[5]}</td><td>${m[6]}</td><td class="r num">${m[7]}</td></tr>`).join('')}
+    </tbody></table></div></div>`;
+};
+
+V.productos = () => {
+  const cats=['Todas',...new Set(P.map(p=>p.cat))];
+  const q=state.q.toLowerCase();
+  const rows=P.filter(p=>(state.cat==='Todas'||p.cat===state.cat)&&(!q||(p.nom+p.sku+p.cb).toLowerCase().includes(q)));
+  return `<div class="head"><div><h1>Productos</h1><p>Catálogo de ${P.length} artículos de ejemplo con su existencia en ${state.alm?ALM[state.alm-1].nom:'los tres almacenes'}.</p></div><div class="actions"><button class="btn" data-toast="Plantilla de importación descargada (simulado)">Importar CSV</button><button class="btn primary" data-toast="Formulario de nuevo producto (fuera del prototipo)">Nuevo producto</button></div></div>
+  <div class="card"><div class="card-b toolbar">
+    <input id="q" type="search" placeholder="Buscar por nombre, SKU o código de barras" value="${esc(state.q)}" aria-label="Buscar producto">
+    <div class="chips" role="group" aria-label="Categoría">${cats.map(c=>`<button class="chip" data-cat="${c}" aria-pressed="${c===state.cat}">${c}</button>`).join('')}</div>
+  </div>
+  <div class="tablewrap"><table><thead><tr><th>SKU</th><th>Producto</th><th>Categoría</th><th>ABC</th><th class="r">Existencia</th><th>Nivel</th><th>Estado</th><th class="r">Precio</th></tr></thead><tbody>
+  ${rows.map(p=>{const s=stockOf(p),mx=maxOf(p),mn=minOf(p);const pct=Math.min(100,s/mx*100);const col=s<mn?'var(--crit)':s>mx?'var(--info)':'var(--ok)';
+    return `<tr class="clickable" data-prod="${p.id}" tabindex="0"><td class="mono">${p.sku}</td><td><a href="#producto" data-prod="${p.id}">${p.nom}</a><div class="muted mono">${p.cb}</div></td><td>${p.cat}</td><td><span class="abc">${p.abc}</span></td><td class="r num">${fmt(s)} ${p.un}</td><td><div class="bar" title="Mín. ${fmt(mn)} · Máx. ${fmt(mx)}"><i style="width:${pct}%;background:${col}"></i></div></td><td>${stockPill(p)}</td><td class="r num">${rd(p.precio)}</td></tr>`}).join('') || `<tr><td colspan="8" class="muted">Ningún producto coincide con “${esc(state.q)}”.</td></tr>`}
+  </tbody></table></div></div>`;
+};
+
+V.producto = () => {
+  const p=prodById(state.prod)||P[0];
+  const kardex=[['09/11/2026','SAL','Venta POS','−36',p.stock[0]],['08/11/2026','ENT','OC-2026-00398','+200',p.stock[0]+36],['07/11/2026','SAL','Venta POS','−41',p.stock[0]-164],['06/11/2026','TRF','A San Pedro','−40',p.stock[0]-123],['05/11/2026','AJU','Conteo CF-0057','−2',p.stock[0]-83]];
+  return `<div class="head"><div><a class="muted" href="#productos">← Productos</a><h1>${p.nom}</h1><p><span class="mono">${p.sku}</span> · ${p.cat} · Clase <span class="abc">${p.abc}</span></p></div><div class="actions"><a class="btn" href="#movimientos">Registrar movimiento</a><a class="btn primary" href="#pronostico">Ver pronóstico</a></div></div>
+  <div class="grid cols-2">
+    <div class="card"><div class="card-h"><h2>Existencias por almacén</h2></div><div class="tablewrap"><table><thead><tr><th>Almacén</th><th class="r">Disponible</th><th class="r">Mínimo</th><th class="r">Punto de reorden</th><th class="r">Máximo</th><th>Estado</th></tr></thead><tbody>
+      ${ALM.map((a,i)=>{const s=p.stock[i];const st=s===0?'<span class="pill crit">Agotado</span>':s<p.min[i]?'<span class="pill crit">Bajo mínimo</span>':s>p.max[i]?'<span class="pill info">Sobreinventario</span>':'<span class="pill ok">Normal</span>';return `<tr><td>${a.nom}</td><td class="r num">${fmt(s)}</td><td class="r num">${fmt(p.min[i])}</td><td class="r num">${fmt(Math.round(p.min[i]*0.98))}</td><td class="r num">${fmt(p.max[i])}</td><td>${st}</td></tr>`}).join('')}
+    </tbody></table></div></div>
+    <div class="card"><div class="card-h"><h2>Datos del producto</h2></div><div class="card-b"><dl class="dl">
+      <dt>Código de barras</dt><dd class="mono">${p.cb}</dd><dt>Unidad</dt><dd>${p.un}</dd><dt>Costo promedio</dt><dd class="num">${rd(p.costo)}</dd><dt>Precio de venta</dt><dd class="num">${rd(p.precio)} + ITBIS 18 %</dd>
+      <dt>Proveedor principal</dt><dd>${p.prov}</dd><dt>Control por lote</dt><dd>${p.lote?'Sí (FEFO)':'No'}</dd><dt>Ubicación central</dt><dd class="mono">P04-E2-N3</dd></dl></div></div>
+  </div>
+  <div class="card"><div class="card-h"><h2>Kárdex · Almacén Central</h2><span class="muted">últimos 5 movimientos</span></div><div class="tablewrap"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Documento</th><th class="r">Cantidad</th><th class="r">Saldo</th></tr></thead><tbody>
+    ${kardex.map(k=>`<tr><td class="num">${k[0]}</td><td><span class="pill ${TIPO_MOV[k[1]]}">${k[1]}</span></td><td class="mono">${k[2]}</td><td class="r num">${k[3]}</td><td class="r num">${fmt(k[4])}</td></tr>`).join('')}
+  </tbody></table></div></div>`;
+};
+
+V.movimientos = () => {
+  const tipos=[['ENT','Entrada'],['SAL','Salida'],['TRF','Transferencia'],['AJU','Ajuste'],['DEV','Devolución']];
+  const total=state.lines.reduce((a,l)=>a+l.cant*l.p.costo,0);
+  return `<div class="head"><div><h1>Registrar movimiento</h1><p>Escanee o escriba el código de barras de cada producto. El stock se actualiza al guardar.</p></div></div>
+  <div class="card"><div class="card-b" style="display:grid;gap:16px">
+    <div class="chips" role="group" aria-label="Tipo de movimiento">${tipos.map(([k,n])=>`<button class="chip" data-tipo="${k}" aria-pressed="${k===state.tipoMov}">${n}</button>`).join('')}</div>
+    <div class="form">
+      <div class="field"><label for="almOrigen">${state.tipoMov==='ENT'?'Almacén que recibe':'Almacén de origen'}</label><select id="almOrigen">${ALM.map(a=>`<option>${a.nom}</option>`).join('')}</select></div>
+      <div class="field"><label for="almDestino">Almacén destino</label><select id="almDestino" ${state.tipoMov==='TRF'?'':'disabled'}>${ALM.map((a,i)=>`<option ${i===2?'selected':''}>${a.nom}</option>`).join('')}</select></div>
+      <div class="field"><label for="doc">${state.tipoMov==='ENT'?'Orden de compra / conduce':'Documento soporte'}</label><input id="doc" type="text" value="${state.tipoMov==='ENT'?'OC-2026-00412':''}" placeholder="Ej.: CF-0058"></div>
+    </div>
+    <form class="scan" id="scanForm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>
+      <input id="scanInput" type="text" placeholder="Código de barras o SKU (pruebe 7460012300125)" aria-label="Código de barras" autocomplete="off">
+      <button class="btn primary" type="submit">Agregar</button>
+      <span class="muted">Códigos de ejemplo: ${P.slice(0,3).map(p=>`<button type="button" class="chip mono" data-cb="${p.cb}">${p.cb}</button>`).join(' ')}</span>
+    </form>
+    <p id="scanErr" class="pill crit" hidden></p>
+  </div>
+  <div class="tablewrap"><table><thead><tr><th>SKU</th><th>Producto</th><th>Lote</th><th class="r">Cantidad</th><th class="r">Costo unit.</th><th class="r">Subtotal</th><th></th></tr></thead><tbody>
+    ${state.lines.length? state.lines.map((l,i)=>`<tr><td class="mono">${l.p.sku}</td><td>${l.p.nom}</td><td class="mono">${l.p.lote?'LV-2611-'+String(10+i).padStart(2,'0'):'—'}</td><td class="r"><input type="number" min="1" value="${l.cant}" data-line="${i}" style="width:90px;text-align:right" aria-label="Cantidad de ${esc(l.p.nom)}"></td><td class="r num">${rd(l.p.costo)}</td><td class="r num">${rd(l.cant*l.p.costo)}</td><td><button class="btn sm" data-del="${i}">Quitar</button></td></tr>`).join('')
+      : `<tr><td colspan="7" class="muted" style="padding:22px 12px">Aún no hay productos en este movimiento. Escanee el primero para comenzar.</td></tr>`}
+  </tbody></table></div>
+  <div class="card-b toolbar" style="border-top:1px solid var(--line)"><span class="muted">${state.lines.length} línea(s)</span><span class="spacer" style="flex:1"></span><b class="num">Total: ${rd(total)}</b><button class="btn" id="clearLines">Cancelar</button><button class="btn primary" id="saveMov" ${state.lines.length?'':'disabled'}>Guardar movimiento</button></div>
+  </div>`;
+};
+
+V.alertas = () => {
+  const f=state.filtroAlerta; const list=ALERTAS.filter(a=>f==='Todas'||a.tipo===f);
+  return `<div class="head"><div><h1>Alertas</h1><p>${pendientes()} pendientes. La meta es atender cada alerta en menos de 24 horas.</p></div></div>
+  <div class="chips" role="group" aria-label="Tipo de alerta">${['Todas',...Object.keys(TIPO_ALERTA)].map(k=>`<button class="chip" data-falerta="${k}" aria-pressed="${k===f}">${k==='Todas'?'Todas':TIPO_ALERTA[k][0]}</button>`).join('')}</div>
+  <div class="card">${list.map(a=>{const [t,c]=TIPO_ALERTA[a.tipo];const p=prodById(a.prod);return `<div class="alert-row"><span class="sev" style="background:var(--${c==='neutral'?'muted':c})"></span>
+    <div class="body"><div class="toolbar"><span class="title">${p.nom}</span><span class="pill ${c}">${t}</span><span class="pill ${a.prio==='Alta'?'crit':a.prio==='Media'?'warn':'neutral'}">Prioridad ${a.prio.toLowerCase()}</span></div>
+    <div class="muted" style="margin-top:4px">${esc(a.msg)}</div><div class="muted mono" style="margin-top:2px">ALR-${a.id} · ${ALM[a.alm-1].nom} · ${a.hace}</div></div>
+    <div class="toolbar" style="flex:none">${a.estado==='Pendiente'?`${a.tipo==='StockMinimo'?'<a class="btn sm" href="#pronostico">Reabastecer</a>':''}<button class="btn sm primary" data-atender="${a.id}">Marcar atendida</button>`:'<span class="pill ok">Atendida</span>'}</div></div>`}).join('') || '<div class="card-b muted">No hay alertas de este tipo.</div>'}</div>`;
+};
+
+V.pronostico = () => `<div class="head"><div><h1>Pronóstico y reabastecimiento</h1><p>Modelo seleccionado por producto según el menor error (MAPE). Última ejecución: hoy, 6:00 a. m.</p></div><div class="actions"><button class="btn" data-toast="Pronóstico recalculado con datos al 08/11/2026 (simulado)">Recalcular</button></div></div>
+  <div class="grid cols-2">
+    <div class="card"><div class="card-h"><h2>Arroz selecto 10 lb · Almacén Central</h2><span class="muted">16 semanas reales + 6 pronosticadas</span></div><div class="card-b">${lineChart(HIST,FC)}</div></div>
+    <div class="card"><div class="card-h"><h2>Parámetros del modelo</h2></div><div class="card-b"><dl class="dl">
+      <dt>Método</dt><dd>Suavizamiento exponencial (Holt)</dd><dt>α / β</dt><dd class="num">0.35 / 0.10</dd><dt>MAPE (12 sem.)</dt><dd class="num"><span class="pill ok">6.4 %</span> meta ≤ 20 %</dd>
+      <dt>Demanda próxima semana</dt><dd class="num">462 und.</dd><dt>Días de entrega</dt><dd class="num">3 días</dd><dt>Stock de seguridad</dt><dd class="num">20 und.</dd><dt>Punto de reorden</dt><dd class="num"><b>118 und.</b> = 462 ÷ 7 × 3 + 20</dd></dl></div></div>
+  </div>
+  <div class="card"><div class="card-h"><h2>Órdenes sugeridas</h2><span class="muted">${SUGERENCIAS.length} productos por debajo de su punto de reorden</span></div>
+  <div class="tablewrap"><table><thead><tr><th>Producto</th><th>Almacén</th><th class="r">Existencia</th><th class="r">Punto de reorden</th><th class="r">Demanda 4 sem.</th><th>Proveedor</th><th class="r">Cantidad sugerida</th><th></th></tr></thead><tbody>
+  ${SUGERENCIAS.map((s,i)=>{const p=prodById(s.prod);return `<tr><td>${p.nom}<div class="muted mono">${p.sku}</div></td><td>${ALM[s.alm-1].nom}</td><td class="r num">${fmt(s.stock)}</td><td class="r num">${fmt(s.pr)}</td><td class="r num">${fmt(s.dem*4)}</td><td>${s.prov}<div class="muted">${s.dias} días de entrega</div></td><td class="r"><input type="number" value="${s.cant}" min="1" style="width:90px;text-align:right" aria-label="Cantidad sugerida de ${esc(p.nom)}"></td><td><button class="btn sm primary" data-toast="Orden en borrador creada para ${esc(s.prov)}">Crear orden</button></td></tr>`}).join('')}
+  </tbody></table></div></div>`;
+
+V.ordenes = () => `<div class="head"><div><h1>Órdenes de compra</h1><p>Las órdenes sugeridas por el sistema se marcan con la etiqueta “Sugerida”.</p></div><div class="actions"><a class="btn" href="#pronostico">Ver sugerencias</a><button class="btn primary" data-toast="Nueva orden en borrador (simulado)">Nueva orden</button></div></div>
+  <div class="grid kpis">
+    ${[['Borrador',1],['Aprobadas / enviadas',2],['Recepción parcial',1],['Monto abierto',null]].map(([l,v])=>`<div class="card kpi"><span class="label">${l}</span><span class="val num">${v===null?rd(ORDENES.filter(o=>!['Recibida','Cancelada'].includes(o.estado)).reduce((a,o)=>a+o.total,0)).replace(/\.\d\d$/,''):v}</span></div>`).join('')}
+  </div>
+  <div class="card"><div class="tablewrap"><table><thead><tr><th>Número</th><th>Proveedor</th><th>Almacén</th><th>Fecha</th><th>Entrega esperada</th><th>Estado</th><th class="r">Total</th><th></th></tr></thead><tbody>
+  ${ORDENES.map(o=>`<tr><td class="mono">${o.num}</td><td>${o.prov} ${o.sug?'<span class="pill info">Sugerida</span>':''}</td><td>${o.alm}</td><td class="num">${o.fecha}</td><td class="num">${o.entrega}</td><td><span class="pill ${EST_OC[o.estado]}">${o.estado}</span></td><td class="r num">${rd(o.total)}</td><td>${o.estado==='Borrador'?'<button class="btn sm primary" data-toast="Orden aprobada y lista para enviar">Aprobar</button>':o.estado==='Enviada'||o.estado==='Parcial'?'<a class="btn sm" href="#movimientos">Recibir</a>':'<button class="btn sm" data-toast="Vista PDF de la orden (simulado)">Ver</button>'}</td></tr>`).join('')}
+  </tbody></table></div></div>`;
+
+V.conteo = () => {
+  if(!state.conteo) state.conteo = P.slice(0,8).map((p,i)=>({p,sis:p.stock[0],cont:[p.stock[0],p.stock[0]-2,p.stock[0],p.stock[0]+1,p.stock[0],p.stock[0],null,null][i]}));
+  const done=state.conteo.filter(l=>l.cont!==null).length;
+  return `<div class="head"><div><h1>Conteo físico CF-0058</h1><p>Conteo cíclico · Almacén Central · pasillos P01 a P04 · responsable: Luis Báez</p></div><div class="actions"><span class="pill warn">Abierto</span><button class="btn primary" id="closeCount" ${done<state.conteo.length?'disabled':''}>Cerrar y generar ajustes</button></div></div>
+  <div class="card"><div class="card-h"><h2>Avance</h2><span class="muted num">${done} de ${state.conteo.length} productos contados</span></div><div class="card-b"><div class="bar" style="height:10px"><i style="width:${done/state.conteo.length*100}%;background:var(--accent)"></i></div></div>
+  <div class="tablewrap"><table><thead><tr><th>SKU</th><th>Producto</th><th>Ubicación</th><th class="r">Según sistema</th><th class="r">Contado</th><th class="r">Diferencia</th></tr></thead><tbody>
+  ${state.conteo.map((l,i)=>{const d=l.cont===null?null:l.cont-l.sis;return `<tr><td class="mono">${l.p.sku}</td><td>${l.p.nom}</td><td class="mono">P0${1+(i>>1)}-E${1+i%3}-N${1+i%4}</td><td class="r num">${fmt(l.sis)}</td><td class="r"><input type="number" min="0" data-cont="${i}" value="${l.cont===null?'':l.cont}" placeholder="—" style="width:90px;text-align:right" aria-label="Cantidad contada de ${esc(l.p.nom)}"></td><td class="r num ${d===null?'':d<0?'diff-neg':d>0?'diff-pos':'diff-0'}">${d===null?'—':d>0?'+'+fmt(d):fmt(d)}</td></tr>`}).join('')}
+  </tbody></table></div></div>`;
+};
+
+V.reportes = () => {
+  const R=[['Valorización del inventario','Valor en RD$ por almacén, categoría y clase ABC, al costo promedio.','Diario'],['Rotación de inventario','Veces que rota cada producto y días de inventario por categoría.','Mensual'],['Kárdex por producto','Entradas, salidas y saldo de un producto en un período.','A demanda'],['Quiebres de stock','Productos agotados por semana y ventas estimadas perdidas.','Semanal'],['Precisión del pronóstico','MAPE por producto y método; comparación pronóstico contra venta real.','Semanal'],['Diferencias de conteo','Diferencias encontradas en conteos físicos y ajustes aplicados.','Por conteo']];
+  return `<div class="head"><div><h1>Reportes</h1><p>Los reportes se generan con los filtros de almacén y período, y se exportan a Excel o PDF.</p></div></div>
+  <div class="card card-b toolbar"><div class="field"><label for="desde">Desde</label><input id="desde" type="date" value="2026-10-01"></div><div class="field"><label for="hasta">Hasta</label><input id="hasta" type="date" value="2026-11-08"></div><div class="field"><label for="catR">Categoría</label><select id="catR"><option>Todas</option><option>Alimentos</option><option>Limpieza</option><option>Ferretería</option></select></div></div>
+  <div class="grid cols-3">${R.map(r=>`<div class="card report"><h3>${r[0]}</h3><p class="muted" style="margin:0">${r[1]}</p><span class="pill neutral">${r[2]}</span><div class="row"><button class="btn sm" data-toast="${r[0]}: Excel generado (simulado)">Excel</button><button class="btn sm" data-toast="${r[0]}: PDF generado (simulado)">PDF</button></div></div>`).join('')}</div>`;
+};
+
+V.usuarios = () => {
+  const roles=[['Administrador','Todo el sistema, usuarios y parámetros'],['Gerente','Tablero, reportes y aprobación de órdenes'],['Compras','Proveedores, pronóstico y órdenes de compra'],['Almacén','Movimientos y conteos de su almacén'],['Auditor','Solo lectura y bitácora de auditoría']];
+  return `<div class="head"><div><h1>Usuarios y roles</h1><p>Cada acción queda registrada en la bitácora de auditoría con usuario, fecha y hora.</p></div><div class="actions"><button class="btn primary" data-toast="Invitación enviada (simulado)">Agregar usuario</button></div></div>
+  <div class="grid cols-2">
+    <div class="card"><div class="tablewrap"><table><thead><tr><th>Nombre</th><th>Rol</th><th>Almacén</th><th>Estado</th><th>Último acceso</th></tr></thead><tbody>
+    ${USERS.map(u=>`<tr><td>${u[0]}<div class="muted">${u[1]}</div></td><td>${u[2]}</td><td>${u[3]}</td><td><span class="pill ${u[4]==='Activo'?'ok':'neutral'}">${u[4]}</span></td><td class="num">${u[5]}</td></tr>`).join('')}
+    </tbody></table></div></div>
+    <div class="card"><div class="card-h"><h2>Roles y permisos</h2></div>${roles.map(r=>`<div class="alert-row"><div class="body"><div class="title">${r[0]}</div><div class="muted">${r[1]}</div></div></div>`).join('')}</div>
+  </div>`;
+};
+
+// ---- Enrutador por hash (#nombre) ----
+function route(){
+  const h=(location.hash||'').replace('#','');
+  const r = V[h] ? h : 'inicio';
+  const root=document.getElementById('root');
+  root.innerHTML = r==='login' ? V.login() : shell(r, V[r]());
+  document.title = r==='login' ? 'SICSI Prototipo' : TITLES[r]+' · SICSI';
+  window.scrollTo(0,0);
+}
+function rerender(){ const y=window.scrollY; route(); window.scrollTo(0,y); }
+function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.setAttribute('role','status'); t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
+function addCode(code){
+  const p=prodByCb(code.trim()); const err=document.getElementById('scanErr');
+  if(!p){ err.textContent=`No existe un producto con el código “${code}”. Verifique el código o regístrelo en Productos.`; err.hidden=false; return; }
+  const l=state.lines.find(x=>x.p.id===p.id); if(l) l.cant++; else state.lines.push({p,cant:1});
+  rerender(); const inp=document.getElementById('scanInput'); if(inp) inp.focus();
+}
+
+document.addEventListener('click',e=>{
+  const t=e.target.closest('button,a,tr'); if(!t) return;
+  if(t.dataset.toast){ toast(t.dataset.toast); return; }
+  if(t.dataset.prod){ state.prod=+t.dataset.prod; if(t.tagName==='TR'){ location.hash='producto'; } return; }
+  if(t.dataset.cat){ state.cat=t.dataset.cat; rerender(); return; }
+  if(t.dataset.tipo){ state.tipoMov=t.dataset.tipo; rerender(); return; }
+  if(t.dataset.falerta){ state.filtroAlerta=t.dataset.falerta; rerender(); return; }
+  if(t.dataset.atender){ const a=ALERTAS.find(x=>x.id==t.dataset.atender); a.estado='Atendida'; rerender(); toast('Alerta marcada como atendida'); return; }
+  if(t.dataset.cb){ addCode(t.dataset.cb); return; }
+  if(t.dataset.del){ state.lines.splice(+t.dataset.del,1); rerender(); return; }
+  if(t.id==='clearLines'){ state.lines=[]; rerender(); return; }
+  if(t.id==='saveMov'){ const n=state.lines.length; state.lines=[]; rerender(); toast(`Movimiento MOV-27582 guardado con ${n} línea(s). Stock actualizado.`); return; }
+  if(t.id==='closeCount'){ toast('Conteo cerrado. Se generó el ajuste AJU-0412.'); return; }
+});
+document.addEventListener('keydown',e=>{ const tr=e.target.closest&&e.target.closest('tr[data-prod]'); if(tr&&e.key==='Enter'){ state.prod=+tr.dataset.prod; location.hash='producto'; }});
+document.addEventListener('submit',e=>{
+  e.preventDefault();
+  if(e.target.id==='loginForm'){ const ok=document.getElementById('email').value&&document.getElementById('pass').value; if(ok) location.hash='inicio'; else document.getElementById('loginErr').hidden=false; }
+  if(e.target.id==='scanForm'){ const v=document.getElementById('scanInput').value; if(v) addCode(v); }
+});
+document.addEventListener('change',e=>{
+  if(e.target.id==='almSel'){ state.alm=+e.target.value; rerender(); }
+  if(e.target.dataset.line){ state.lines[+e.target.dataset.line].cant=Math.max(1,+e.target.value||1); rerender(); }
+  if(e.target.dataset.cont!==undefined){ const v=e.target.value; state.conteo[+e.target.dataset.cont].cont = v===''?null:+v; rerender(); }
+});
+document.addEventListener('input',e=>{ if(e.target.id==='q'){ state.q=e.target.value; const pos=e.target.selectionStart; rerender(); const q=document.getElementById('q'); q.focus(); q.setSelectionRange(pos,pos); }});
+window.addEventListener('hashchange',route);
+route();
+})();
+</script>
+
+</body></html>
